@@ -1,0 +1,208 @@
+As an experienced data analyst, I will break down this task into a structured approach, ensuring all requirements are met.
+
+***
+
+### Understanding the Needs
+
+The core task involves scraping data from a Wikipedia page, cleaning it, performing specific data analysis to answer four questions, and generating a plot, all within a specified output format (JSON array of strings and a base64 encoded image).
+
+**Key data points needed from the Wikipedia table:**
+*   Film Title
+*   Worldwide gross
+*   Year
+*   Current Rank
+*   Peak Rank (highest position reached)
+
+***
+
+### Task Breakdown
+
+#### Step 1. How to get to the data source and find the relevant data to answer the questions.
+
+**Goal:** Retrieve the table containing the highest-grossing films from the specified Wikipedia URL.
+
+**Substeps:**
+
+1.  **Identify Data Source URL:**
+    *   **Tool:** Provided URL: `https://en.wikipedia.org/wiki/List_of_highest-grossing_films`
+    *   **Description:** The direct link to the Wikipedia page is given.
+2.  **Inspect Webpage for Table Structure:**
+    *   **Tool:** Browser Developer Tools (e.g., Chrome DevTools, Firefox Inspector) or implicit inspection by `pandas.read_html`.
+    *   **Description:** Determine which HTML table element on the page contains the required data. `pandas.read_html` is very efficient as it parses all tables and allows selection by index or content. I will use `pandas.read_html` and then identify the correct table by inspecting its columns.
+3.  **Scrape Data into a DataFrame:**
+    *   **Tool:** Python `pandas` library.
+    *   **Description:** Use `pd.read_html()` to fetch all tables from the URL. Then, select the table that contains columns like 'Film', 'Worldwide gross', 'Year', 'Rank', and 'Peak'.
+
+#### Step 2. Clean and Transform the extracted data
+
+**Goal:** Prepare the raw data for analysis by converting relevant columns to appropriate data types and handling inconsistencies.
+
+**Substeps:**
+
+1.  **Load Raw Data into DataFrame:**
+    *   **Tool:** `pandas`.
+    *   **Description:** The result from Step 1.3 will be a list of DataFrames. We will select the correct DataFrame.
+2.  **Select Relevant Columns:**
+    *   **Tool:** `pandas` DataFrame column selection.
+    *   **Description:** Isolate 'Rank', 'Film', 'Worldwide gross', 'Year', and 'Peak' for further processing.
+3.  **Clean 'Worldwide gross' Column:**
+    *   **Tool:** `pandas` string manipulation (`.str.replace()`), `pd.to_numeric()`.
+    *   **Description:** Remove currency symbols ('$'), thousands separators (','), and any bracketed references (e.g., `[a]`). Convert the column to a numeric type (float).
+4.  **Clean 'Year' Column:**
+    *   **Tool:** `pd.to_numeric()`.
+    *   **Description:** Ensure 'Year' is an integer type. Handle potential non-numeric entries by coercing to `NaN` and then dropping.
+5.  **Clean 'Rank' Column:**
+    *   **Tool:** `pd.to_numeric()`.
+    *   **Description:** Ensure 'Rank' is an integer type. This column might also contain bracketed references `[a]` that need to be removed before conversion.
+6.  **Clean 'Peak' Column:**
+    *   **Tool:** `pandas` string manipulation (`.str.replace()`), `pd.to_numeric()`.
+    *   **Description:** Remove any bracketed references (e.g., `[a]`) and convert the column to an integer type.
+7.  **Handle Missing Values:**
+    *   **Tool:** `pandas` (`.dropna()`).
+    *   **Description:** Remove rows where essential columns ('Worldwide gross', 'Year', 'Rank', 'Peak') have `NaN` values to ensure accurate calculations. Convert integer columns to `Int64` (nullable integer type) after dropping NaNs to preserve integer type if NaNs were present.
+
+#### Step 3. Answer the questions. Use libraries to analyse the data and answer the questions.
+
+**Goal:** Perform calculations and visualizations based on the cleaned data to answer the specified questions.
+
+**Substeps (per question):**
+
+*   **Substep 3.1: Answer Question 1: How many $2 bn movies were released before 2000?**
+    *   **Tools:** `pandas` DataFrame filtering, `.shape[0]`.
+    *   **Description:** Filter the DataFrame for movies with 'Worldwide gross' >= $2,000,000,000 and 'Year' < 2000. Count the number of rows in the filtered result.
+*   **Substep 3.2: Answer Question 2: Which is the earliest film that grossed over $1.5 bn?**
+    *   **Tools:** `pandas` DataFrame filtering, `.sort_values()`, `.iloc[]`.
+    *   **Description:** Filter for movies with 'Worldwide gross' >= $1,500,000,000. Sort these films by 'Year' in ascending order. Select the 'Film' name from the first row of the sorted result.
+*   **Substep 3.3: Answer Question 3: What's the correlation between the Rank and Peak?**
+    *   **Tools:** `pandas` (`.corr()`).
+    *   **Description:** Calculate the Pearson correlation coefficient between the 'Rank' and 'Peak' columns.
+*   **Substep 3.4: Answer Question 4: Draw a scatterplot of Rank and Peak along with a dotted red regression line through it. Return as a base-64 encoded data URI, under 100,000 bytes.**
+    *   **Tools:** `matplotlib.pyplot`, `seaborn`, `io.BytesIO`, `base64`.
+    *   **Description:**
+        1.  Create a scatterplot using `seaborn.regplot` with 'Rank' on the x-axis and 'Peak' on the y-axis.
+        2.  Configure the regression line to be dotted and red.
+        3.  Set appropriate title and axis labels.
+        4.  Save the plot to an in-memory buffer (`io.BytesIO`) as a PNG image. Adjust `dpi` and `figsize` to ensure the output image size is under 100KB.
+        5.  Encode the image bytes to a base64 string.
+        6.  Format the string as a data URI: `"data:image/png;base64,..."`.
+
+***
+
+### Implementation
+
+```python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import io
+import base64
+import re
+
+# --- Step 1. Get to the data source and find the relevant data ---
+URL = "https://en.wikipedia.org/wiki/List_of_highest-grossing_films"
+
+# Substep 1.3: Scrape the data
+# pandas.read_html returns a list of dataframes, one for each table found.
+# We need to identify the correct table.
+try:
+    tables = pd.read_html(URL)
+except Exception as e:
+    print(f"Error reading HTML: {e}")
+    # Handle error or exit if data cannot be fetched
+    exit()
+
+df_raw = None
+for table in tables:
+    # Check if the table contains the expected columns
+    if all(col in table.columns for col in ['Film', 'Worldwide gross', 'Year', 'Rank', 'Peak']):
+        df_raw = table
+        break
+
+if df_raw is None:
+    print("Could not find the main highest-grossing films table.")
+    exit()
+
+# --- Step 2. Clean and Transform the extracted data ---
+
+# Substep 2.2: Select relevant columns and make a copy to avoid SettingWithCopyWarning
+df = df_raw[['Rank', 'Film', 'Worldwide gross', 'Year', 'Peak']].copy()
+
+# Substep 2.3: Clean 'Worldwide gross' column
+# Remove '$', ',', and any bracketed text like '[a]'
+df['Worldwide gross'] = df['Worldwide gross'].astype(str).str.replace(r'[$,]', '', regex=True)
+df['Worldwide gross'] = df['Worldwide gross'].str.replace(r'\[.*?\]', '', regex=True)
+df['Worldwide gross'] = pd.to_numeric(df['Worldwide gross'], errors='coerce')
+
+# Substep 2.4: Clean 'Year' column
+df['Year'] = pd.to_numeric(df['Year'].astype(str).str.split('[').str[0], errors='coerce') # Split by '[' to remove references
+
+# Substep 2.5: Clean 'Rank' column
+df['Rank'] = df['Rank'].astype(str).str.replace(r'\[.*?\]', '', regex=True) # Remove bracketed text
+df['Rank'] = pd.to_numeric(df['Rank'], errors='coerce')
+
+# Substep 2.6: Clean 'Peak' column
+df['Peak'] = df['Peak'].astype(str).str.replace(r'\[.*?\]', '', regex=True) # Remove bracketed text
+df['Peak'] = pd.to_numeric(df['Peak'], errors='coerce')
+
+
+# Substep 2.7: Handle missing values in critical columns
+df.dropna(subset=['Rank', 'Film', 'Worldwide gross', 'Year', 'Peak'], inplace=True)
+
+# Convert to appropriate integer types (nullable for potential NaNs earlier if not dropped)
+# After dropping NaNs, we can convert to non-nullable integer types
+df['Rank'] = df['Rank'].astype(int)
+df['Year'] = df['Year'].astype(int)
+df['Peak'] = df['Peak'].astype(int)
+
+# --- Step 3. Answer the questions ---
+answers = []
+
+# Question 1: How many $2 bn movies were released before 2000?
+# Substep 3.1
+two_billion_threshold = 2_000_000_000
+movies_before_2000_2bn = df[(df['Worldwide gross'] >= two_billion_threshold) & (df['Year'] < 2000)]
+q1_answer = movies_before_2000_2bn.shape[0]
+answers.append(f"1. {q1_answer} movies were released before 2000 with a worldwide gross over $2 billion.")
+
+# Question 2: Which is the earliest film that grossed over $1.5 bn?
+# Substep 3.2
+one_point_five_billion_threshold = 1_500_000_000
+films_over_1_5bn = df[df['Worldwide gross'] >= one_point_five_billion_threshold].sort_values(by='Year')
+earliest_film_over_1_5bn = films_over_1_5bn.iloc[0]['Film'] if not films_over_1_5bn.empty else "N/A"
+answers.append(f"2. The earliest film that grossed over $1.5 billion is: {earliest_film_over_1_5bn}")
+
+# Question 3: What's the correlation between the Rank and Peak?
+# Substep 3.3
+correlation_rank_peak = df['Rank'].corr(df['Peak'])
+answers.append(f"3. The correlation between Rank and Peak is: {correlation_rank_peak:.4f}")
+
+# Question 4: Draw a scatterplot of Rank and Peak along with a dotted red regression line.
+# Substep 3.4
+plt.figure(figsize=(7, 5), dpi=100) # Adjust figsize and dpi to manage output size
+sns.regplot(x='Rank', y='Peak', data=df,
+            scatter_kws={'s': 20, 'alpha': 0.7}, # Smaller dots
+            line_kws={'color': 'red', 'linestyle': ':', 'linewidth': 1.5}) # Dotted red line
+plt.title('Scatterplot of Current Rank vs. Peak Rank')
+plt.xlabel('Current Rank (Lower is Higher Grossing)')
+plt.ylabel('Peak Rank (Lower is Higher Grossing)')
+plt.grid(True, linestyle='--', alpha=0.6)
+plt.tight_layout()
+
+# Save plot to a BytesIO object
+buffer = io.BytesIO()
+plt.savefig(buffer, format='png', bbox_inches='tight')
+plt.close() # Close the plot to free memory
+
+# Encode to base64
+base64_image = base64.b64encode(buffer.getvalue()).decode('utf-8')
+data_uri = f"data:image/png;base64,{base64_image}"
+
+# Check image size (optional, for debugging)
+# print(f"Image size: {len(buffer.getvalue())} bytes")
+
+answers.append(data_uri)
+
+import json
+print(json.dumps(answers, indent=2))
+```
