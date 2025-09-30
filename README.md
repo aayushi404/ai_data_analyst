@@ -11,3 +11,16 @@ For now i will make a prototype of it and test it with some sample data and ques
 ## First Stage
 ### To-Do
 question.tsx -> send to api -> convert to json -> breakdown into small tasks -> Generate code for tasks -> Execute code -> Get results -> Send results to LLM with question -> Get final answer -> send to frontend
+
+The core logic that i will use to implement it is this:
+```python
+def loop(llm):
+    msg = [user_input()]  # App begins by taking user input
+    while True:
+        output, tool_calls = llm(msg, tools)  # ... and sends the conversation + tools to the LLM
+        print("Agent: ", output)  # Always stream LLM output, if any
+        if tool_calls:  # Continue executing tool calls until LLM decides it needs no more
+            msg += [ handle_tool_call(tc) for tc in tool_calls ]  # Allow multiple tool calls (may be parallel)
+        else:
+            msg.append(user_input())  # Add the user input message and continue
+```

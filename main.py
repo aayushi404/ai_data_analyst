@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from google import genai
+from google.genai import types
 from dotenv import load_dotenv
 import os
 
@@ -43,6 +44,34 @@ def root():
     )
     return {"message":response.text}
 
+def send_llm(sysInst:str="", contents:list[str]=None):
+    try:
+        client = genai.Client()
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            config=types.GenerateContentConfig(
+                system_instruction=sysInst),
+            contents=contents
+        )
+        return response.text
+    except Exception as e:
+        raise Exception(str(e))
+
+def loop(sysInst:str, contents=list[str]):
+    return
+
+def gen_code(instructions):
+    sysPropmt = '''
+        you are an experianced data analyst. 
+        ***awailable resources: ***
+        1. questions to solve
+        2. step by step instructions to solve those questions 
+
+        ***Goal: ***
+        generate complete python code that can be executable. also include libraries to install in the code 
+    '''
+    code = send_llm(sysInst=sysPropmt, contents=[instructions])
+    return code
 
 @app.post("/uploadFile/")
 async def uploadFile(file:UploadFile=File(...)):
@@ -50,7 +79,8 @@ async def uploadFile(file:UploadFile=File(...)):
         content = await file.read()
         if file.content_type == "text/plain":
             text = content.decode('utf-8')
-            task_breakdown(text)
+            instructions = task_breakdown(text)
+            get_code(instructions)
             return {"content":text}
         else:
             return JSONResponse(status_code=200, content={"message":"please provide you detailed question in a txt file"})
