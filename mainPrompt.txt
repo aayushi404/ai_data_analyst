@@ -26,7 +26,7 @@ Once the raw data is extracted, it needs to be cleaned and formatted to facilita
 
 *   **Sub-step 2.2: Data Type Conversion and Cleaning:**
     *   **Action:**
-        *   Convert the 'Worldwide gross' column from a string with currency symbols and text (e.g., "$2,974,839,111") to a numerical format (e.g., 2974839111). This will involve removing characters like '$', ',', and any bracketed annotations.
+        *   Convert the 'Worldwide gross' column from a string with currency symbols and text (e.g., "$2,974,839,111") to a numerical format (e.g., 2974839111). This will involve removing characters like '$', ',', and any bracketed annotations use `pd.to_numeric` to change.
         *   Convert the 'Year' column to a numeric or datetime format to enable filtering by date.
         *   Ensure the 'Rank' and 'Peak' columns are treated as numerical data for correlation and plotting.
     *   **Tool:** Python's `pandas` library, utilizing string manipulation functions (`.str.replace()`) and data type conversion methods (`.astype()`).
